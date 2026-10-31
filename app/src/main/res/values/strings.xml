@@ -2170,6 +2170,19 @@
     <string name="gstore_cannot_create">cannot create folders in %1$s</string>
     <string name="gstore_cannot_write">cannot write in %1$s</string>
     <string name="gstore_cannot_write_detail">cannot write in %1$s (%2$s)</string>
+    <string name="gstore_drive_missing">%1$s is not connected. Reconnect the drive, or choose another location</string>
+    <string name="gstore_drive_read_only">%1$s is read-only. Check the drive\'s write-protect switch, or choose another location</string>
+    <string name="gstore_drive_not_writable">DroidDeck cannot write to %1$s. Choose the drive\'s own entry, a folder you can write to, or grant All files access</string>
+    <string name="gstore_drive_disconnected">%1$s was disconnected. Games on it are unavailable until you reconnect it; internal storage still works</string>
+    <string name="gstore_drive_reconnected">%1$s is connected again. It is used from the next session</string>
+    <string name="gstore_status_available">Connected</string>
+    <string name="gstore_status_available_free">Connected · %1$s free</string>
+    <string name="gstore_status_low_space">Connected · only %1$s free</string>
+    <string name="gstore_status_read_only">Read-only</string>
+    <string name="gstore_status_not_writable">Cannot write</string>
+    <string name="mode_storage_status" translatable="false">%1$s. %2$s</string>
+    <string name="mode_storage_unavailable_hint">%1$s. Steam uses internal storage until you reconnect the drive or choose another location. Nothing on the drive is removed.</string>
+    <string name="session_game_storage_unavailable">Game storage: %1$s. Steam is using internal storage this session.</string>
     <string name="gfiles_folder_unavailable">Folder is unavailable</string>
     <string name="gfiles_name_taken">A different file already uses %1$s</string>
     <string name="gfiles_art_unavailable">Artwork folder is unavailable</string>

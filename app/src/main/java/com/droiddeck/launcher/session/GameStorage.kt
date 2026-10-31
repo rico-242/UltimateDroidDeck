@@ -34,6 +34,9 @@ object GameStorage {
 
     fun prepare(context: Context, path: String): String? {
         val root = File(path)
+        // Never create folders under an absent mount point: that would put an empty library on another filesystem.
+        val status = LibraryAvailability.check(path)
+        LibraryAvailability.problem(context, savedLabel(context, path), status)?.let { return it }
         val steamapps = File(root, "steamapps")
         if (!steamapps.isDirectory && !steamapps.mkdirs()) return context.getString(R.string.gstore_cannot_create, path)
         val probe = File(steamapps, ".writable")
@@ -80,6 +83,23 @@ object GameStorage {
         File(root, "steamapps").listFiles { f -> f.isFile && f.name.startsWith("appmanifest_") && f.name.endsWith(".acf") }?.isNotEmpty() == true
 
     private fun canonical(file: File): String = runCatching { file.canonicalPath }.getOrDefault(file.absolutePath)
+
+    fun savedLabel(context: Context, path: String): String {
+        val pref = SessionPrefs.gameStorage(context)
+        val library = pref.takeIf { it.isNotEmpty() && it != SessionPrefs.GAME_STORAGE_OFF }
+        if (library != null && (path == library || path.startsWith("$library/"))) {
+            SessionPrefs.gameStorageLabel(context).takeIf { it.isNotBlank() }?.let { return it }
+        }
+        return labelFor(context, path)
+    }
+
+    /** The library Steam would use, checked without creating anything; null when internal storage is chosen. */
+    fun selectedStatus(context: Context): Pair<Option, LibraryAvailability.Status>? {
+        val pref = SessionPrefs.gameStorage(context)
+        if (pref == SessionPrefs.GAME_STORAGE_OFF) return null
+        val option = if (pref.isEmpty()) effective(context) ?: return null else Option(savedLabel(context, pref), pref)
+        return option to LibraryAvailability.check(option.path)
+    }
 
     fun labelFor(context: Context, path: String): String =
         options(context).firstOrNull { it.path == path }?.name
