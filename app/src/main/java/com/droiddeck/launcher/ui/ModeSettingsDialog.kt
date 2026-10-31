@@ -73,6 +73,8 @@ class ModeSettings(
     val mic: Boolean?,
     val gameStorage: String? = null,
     val storageOptions: List<com.droiddeck.launcher.session.GameStorage.Option> = emptyList(),
+    val gameStorageStatus: String? = null,
+    val gameStorageUsable: Boolean = true,
     val storageDiagnostics: Boolean = false,
     val fexPreset: String? = null,
     val forceSsbs: Boolean = false,
@@ -374,13 +376,19 @@ fun ModeSheetRows(s: ModeSettings, a: ModeSettingsActions, tab: String, extras: 
                 if (custom) stringResource(R.string.mode_storage_folder, s.gameStorage).let { add(StorageChoice(s.gameStorage, it, it, it)) }
             }
             val open = host.open == "storage"
+            val status = s.gameStorageStatus?.takeIf { s.gameStorage != "off" }
             SettingsRow(
                 stringResource(R.string.mode_second_library),
-                stringResource(R.string.second_library_import_hint),
+                when {
+                    status == null -> stringResource(R.string.second_library_import_hint)
+                    s.gameStorageUsable -> stringResource(R.string.mode_storage_status, status, stringResource(R.string.second_library_import_hint))
+                    else -> stringResource(R.string.mode_storage_unavailable_hint, status)
+                },
                 highlighted = open,
             ) {
                 androidx.compose.foundation.layout.Box {
-                    ValueChip(options.firstOrNull { it.path == s.gameStorage }?.chip ?: "-", open) { host.open = if (open) null else "storage" }
+                    val chip = options.firstOrNull { it.path == s.gameStorage }?.chip ?: "-"
+                    ValueChip(if (s.gameStorageUsable || status == null) chip else "$chip · $status", open) { host.open = if (open) null else "storage" }
                     AnchoredMenu(
                         open, onDismiss = { if (host.open == "storage") host.open = null }, title = stringResource(R.string.mode_second_library),
                         note = stringResource(R.string.mode_storage_note),

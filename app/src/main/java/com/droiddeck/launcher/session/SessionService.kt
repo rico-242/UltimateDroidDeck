@@ -1009,6 +1009,9 @@ class SessionService : Service() {
                 }
             } else {
                 Log.w(TAG, "game storage: $problem; internal only this session")
+                mainHandler.post {
+                    Toast.makeText(this, getString(R.string.session_game_storage_unavailable, problem), Toast.LENGTH_LONG).show()
+                }
             }
         } else {
             Log.i(TAG, "game storage: internal only")

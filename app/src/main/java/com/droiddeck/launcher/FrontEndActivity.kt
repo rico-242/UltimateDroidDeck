@@ -212,6 +212,7 @@ class FrontEndActivity : ComponentActivity() {
     private val mediaRefresh = Runnable {
         refresh()
         refreshAddedGames()
+        refreshGameStorageStatus(announce = true)
     }
     private val mediaReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
@@ -478,6 +479,9 @@ class FrontEndActivity : ComponentActivity() {
     private var oscMode by mutableStateOf(SessionPrefs.OSC_AUTO)
     private var backActionsInverted by mutableStateOf(false)
     private var gameStorage by mutableStateOf("")
+    private var gameStorageStatus by mutableStateOf<com.droiddeck.launcher.session.LibraryAvailability.Status?>(null)
+    private var gameStorageStatusLabel by mutableStateOf("")
+    private var gameStorageScan = 0
     private var slowUsb by mutableStateOf<com.droiddeck.launcher.session.UsbLink.SlowDrive?>(null)
     private var usbScan = 0
     private var slowUsbNever by mutableStateOf(false)
@@ -1717,6 +1721,7 @@ class FrontEndActivity : ComponentActivity() {
                 Intent.ACTION_MEDIA_EJECT, Intent.ACTION_MEDIA_BAD_REMOVAL)) addAction(action)
             addDataScheme("file")
         })
+        if (gameStorageStatus == null) refreshGameStorageStatus(announce = false)
         displayManager.registerDisplayListener(secondScreenDisplayListener, ui)
         getSystemService(android.hardware.input.InputManager::class.java)?.registerInputDeviceListener(secondScreenTouchListener, ui)
         launcherStarted = true
@@ -2117,6 +2122,8 @@ class FrontEndActivity : ComponentActivity() {
                 mic = if (mode == SessionService.MODE_STEAM) mic else null,
                 gameStorage = if (mode == SessionService.MODE_STEAM) gameStorage else null,
                 storageOptions = storageOptions,
+                gameStorageStatus = gameStorageStatus?.let { com.droiddeck.launcher.session.LibraryAvailability.summary(this, it) },
+                gameStorageUsable = gameStorageStatus?.usable ?: true,
                 storageDiagnostics = mode == SessionService.MODE_STEAM && storageDiagnostics,
                 fexPreset = if (mode == SessionService.MODE_STEAM) fexPreset else null,
                 forceSsbs = forceSsbs,
@@ -2418,10 +2425,13 @@ class FrontEndActivity : ComponentActivity() {
         Thread({
             drivers.refreshDrivers()
             val storage = GameStorage.options(this)
+            val selected = runCatching { GameStorage.selectedStatus(this) }.getOrNull()
             val deckyInstalled = if (mode == SessionService.MODE_STEAM) DeckyManager.installed(this) else null
             val deckySupervisor = mode == SessionService.MODE_STEAM && DeckyManager.supervisorEnabled(this)
             ui.post {
                 storageOptions = storage
+                gameStorageStatus = selected?.second
+                gameStorageStatusLabel = selected?.first?.name.orEmpty()
                 if (mode == SessionService.MODE_STEAM) {
                     decky.deckyInstalled = deckyInstalled
                     decky.deckySupervisor = deckySupervisor
@@ -2443,6 +2453,33 @@ class FrontEndActivity : ComponentActivity() {
         SessionPrefs.setGameStorage(this, path, label)
         gameStorage = path
         checkUsbLink()
+        refreshGameStorageStatus(announce = false)
+    }
+
+    private fun refreshGameStorageStatus(announce: Boolean) {
+        val scan = ++gameStorageScan
+        val before = gameStorageStatus
+        val beforePath = gameStorage
+        Thread({
+            val selected = runCatching { GameStorage.selectedStatus(this) }.getOrNull()
+            val options = runCatching { GameStorage.options(this) }.getOrNull()
+            ui.post {
+                if (scan != gameStorageScan || isFinishing) return@post
+                options?.let { storageOptions = it }
+                val now = selected?.second
+                gameStorageStatus = now
+                gameStorageStatusLabel = selected?.first?.name.orEmpty()
+                if (!announce || before == null || now == null || beforePath != gameStorage) return@post
+                val message = when {
+                    before.usable && now.state == com.droiddeck.launcher.session.LibraryState.MISSING ->
+                        getString(R.string.gstore_drive_disconnected, gameStorageStatusLabel)
+                    before.state == com.droiddeck.launcher.session.LibraryState.MISSING && now.usable ->
+                        getString(R.string.gstore_drive_reconnected, gameStorageStatusLabel)
+                    else -> null
+                }
+                message?.let { android.widget.Toast.makeText(this, it, android.widget.Toast.LENGTH_LONG).show() }
+            }
+        }, "game-storage-status").start()
     }
 
     private fun checkUsbLink() {
